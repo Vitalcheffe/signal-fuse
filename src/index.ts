@@ -39,6 +39,7 @@ async function main() {
       models: { type: "string", short: "m", default: "" },
       threshold: { type: "string", short: "t", default: "0.6" },
       format: { type: "string", short: "f", default: "text" },
+      timeout: { type: "string", default: "30" },
       verbose: { type: "boolean", short: "v", default: false },
       quiet: { type: "boolean", short: "q", default: false },
       help: { type: "boolean", short: "h", default: false },
@@ -60,14 +61,34 @@ async function main() {
 
   const prompt = positionals.join(" ");
   const threshold = parseFloat(values.threshold as string);
+  const timeoutSec = parseInt(values.timeout as string, 10);
   const format = values.format as string;
   const verbose = values.verbose as boolean;
   const quiet = values.quiet as boolean;
+
+  if (isNaN(threshold) || threshold < 0 || threshold > 1) {
+    console.error(c.red("✖") + " Threshold must be a number between 0 and 1.");
+    process.exit(1);
+  }
+
+  if (isNaN(timeoutSec) || timeoutSec < 1) {
+    console.error(c.red("✖") + " Timeout must be a positive number of seconds.");
+    process.exit(1);
+  }
 
   // Resolve providers
   const requestedModels = (values.models as string)
     ? (values.models as string).split(",").map((s) => s.trim())
     : detectAvailableProviders();
+
+  // Validate requested provider names
+  const knownProviders = ["openai", "anthropic", "gemini", "mistral", "deepseek", "groq", "xai", "openrouter"];
+  const unknownModels = requestedModels.filter((m) => !knownProviders.includes(m));
+  if (unknownModels.length > 0) {
+    console.error(c.red("✖") + ` Unknown provider(s): ${unknownModels.join(", ")}`);
+    console.error(`  Available: ${knownProviders.join(", ")}`);
+    process.exit(1);
+  }
 
   if (requestedModels.length < 2) {
     console.error(c.red("✖") + " Need at least 2 providers for consensus.");

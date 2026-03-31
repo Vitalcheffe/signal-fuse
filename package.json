@@ -1,0 +1,16 @@
+{
+  "name": "signal-fuse",
+  "version": "1.0.0",
+  "description": "Ask 3 models, get 1 truth. BFT-inspired multi-LLM consensus CLI.",
+  "type": "module",
+  "bin": { "signal-fuse": "./bin/signal-fuse.js" },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test src/__tests__/*.test.ts"
+  },
+  "keywords": ["llm", "consensus", "ai", "cli", "multi-model", "bft", "agents"],
+  "license": "MIT",
+  "engines": { "node": ">=20" },
+  "dependencies": {},
+  "devDependencies": { "typescript": "^5.3.0" }
+}

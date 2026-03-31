@@ -18,117 +18,151 @@ interface ProviderConfig {
   extractResponse: (data: unknown) => string;
 }
 
-function getProviders(requested: string[]): ProviderConfig[] {
+export type ProviderOptions = {
+  /** Custom model override per provider */
+  models?: Record<string, string>;
+  /** Max tokens per response */
+  maxTokens?: number;
+};
+
+function getProviders(requested: string[], opts: ProviderOptions = {}): ProviderConfig[] {
+  const maxTokens = opts.maxTokens ?? 1024;
+  const customModels = opts.models ?? {};
+
   const all: (ProviderConfig | null)[] = [
-    process.env.OPENAI_API_KEY ? {
-      name: "openai",
-      apiKey: process.env.OPENAI_API_KEY,
-      url: "https://api.openai.com/v1/chat/completions",
-      model: "gpt-4o-mini",
-      transformRequest: (prompt) => ({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.OPENAI_API_KEY ? (() => {
+      const model = customModels.openai ?? "gpt-4o-mini";
+      return {
+        name: "openai",
+        apiKey: process.env.OPENAI_API_KEY,
+        url: "https://api.openai.com/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
 
-    process.env.ANTHROPIC_API_KEY ? {
-      name: "anthropic",
-      apiKey: process.env.ANTHROPIC_API_KEY,
-      url: "https://api.anthropic.com/v1/messages",
-      model: "claude-sonnet-4-20250514",
-      transformRequest: (prompt) => ({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.content?.[0]?.text ?? "",
-    } : null,
+    process.env.ANTHROPIC_API_KEY ? (() => {
+      const model = customModels.anthropic ?? "claude-sonnet-4-20250514";
+      return {
+        name: "anthropic",
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        url: "https://api.anthropic.com/v1/messages",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          max_tokens: maxTokens,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.content?.[0]?.text ?? "",
+      };
+    })() : null,
 
-    process.env.GEMINI_API_KEY ? {
-      name: "gemini",
-      apiKey: process.env.GEMINI_API_KEY,
-      url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      model: "gemini-2.0-flash",
-      transformRequest: (prompt) => ({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 1024, temperature: 0 },
-      }),
-      extractResponse: (data: any) => data.candidates?.[0]?.content?.parts?.[0]?.text ?? "",
-    } : null,
+    process.env.GEMINI_API_KEY ? (() => {
+      const model = customModels.gemini ?? "gemini-2.0-flash";
+      return {
+        name: "gemini",
+        apiKey: process.env.GEMINI_API_KEY,
+        url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        model,
+        transformRequest: (prompt: string) => ({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: maxTokens, temperature: 0 },
+        }),
+        extractResponse: (data: any) => data.candidates?.[0]?.content?.parts?.[0]?.text ?? "",
+      };
+    })() : null,
 
-    process.env.MISTRAL_API_KEY ? {
-      name: "mistral",
-      apiKey: process.env.MISTRAL_API_KEY,
-      url: "https://api.mistral.ai/v1/chat/completions",
-      model: "mistral-small-latest",
-      transformRequest: (prompt) => ({
-        model: "mistral-small-latest",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.MISTRAL_API_KEY ? (() => {
+      const model = customModels.mistral ?? "mistral-small-latest";
+      return {
+        name: "mistral",
+        apiKey: process.env.MISTRAL_API_KEY,
+        url: "https://api.mistral.ai/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
 
-    process.env.GROQ_API_KEY ? {
-      name: "groq",
-      apiKey: process.env.GROQ_API_KEY,
-      url: "https://api.groq.com/openai/v1/chat/completions",
-      model: "llama-3.3-70b-versatile",
-      transformRequest: (prompt) => ({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.GROQ_API_KEY ? (() => {
+      const model = customModels.groq ?? "llama-3.3-70b-versatile";
+      return {
+        name: "groq",
+        apiKey: process.env.GROQ_API_KEY,
+        url: "https://api.groq.com/openai/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
 
-    process.env.DEEPSEEK_API_KEY ? {
-      name: "deepseek",
-      apiKey: process.env.DEEPSEEK_API_KEY,
-      url: "https://api.deepseek.com/v1/chat/completions",
-      model: "deepseek-chat",
-      transformRequest: (prompt) => ({
-        model: "deepseek-chat",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.DEEPSEEK_API_KEY ? (() => {
+      const model = customModels.deepseek ?? "deepseek-chat";
+      return {
+        name: "deepseek",
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        url: "https://api.deepseek.com/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
 
-    process.env.XAI_API_KEY ? {
-      name: "xai",
-      apiKey: process.env.XAI_API_KEY,
-      url: "https://api.x.ai/v1/chat/completions",
-      model: "grok-3-mini",
-      transformRequest: (prompt) => ({
-        model: "grok-3-mini",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.XAI_API_KEY ? (() => {
+      const model = customModels.xai ?? "grok-3-mini";
+      return {
+        name: "xai",
+        apiKey: process.env.XAI_API_KEY,
+        url: "https://api.x.ai/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
 
-    process.env.OPENROUTER_API_KEY ? {
-      name: "openrouter",
-      apiKey: process.env.OPENROUTER_API_KEY,
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      model: "auto",
-      transformRequest: (prompt) => ({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0,
-      }),
-      extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
-    } : null,
+    process.env.OPENROUTER_API_KEY ? (() => {
+      const model = customModels.openrouter ?? "meta-llama/llama-3.3-70b-instruct:free";
+      return {
+        name: "openrouter",
+        apiKey: process.env.OPENROUTER_API_KEY,
+        url: "https://openrouter.ai/api/v1/chat/completions",
+        model,
+        transformRequest: (prompt: string) => ({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: maxTokens,
+          temperature: 0,
+        }),
+        extractResponse: (data: any) => data.choices?.[0]?.message?.content ?? "",
+      };
+    })() : null,
   ];
 
   const available = all.filter(Boolean) as ProviderConfig[];
@@ -225,8 +259,9 @@ async function queryProvider(config: ProviderConfig, prompt: string): Promise<Pr
 export async function queryAll(
   prompt: string,
   requested: string[],
+  opts: ProviderOptions = {},
 ): Promise<ProviderResponse[]> {
-  const providers = getProviders(requested);
+  const providers = getProviders(requested, opts);
   if (providers.length === 0) return [];
 
   const results = await Promise.allSettled(

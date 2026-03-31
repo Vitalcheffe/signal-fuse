@@ -64,11 +64,11 @@ async function main() {
   }
 
   const prompt = positionals.join(" ");
-  const threshold = parseFloat(values.threshold as string);
-  const timeoutSec = parseInt(values.timeout as string, 10);
-  const format = values.format as string;
-  const verbose = values.verbose as boolean;
-  const quiet = values.quiet as boolean;
+  const threshold = parseFloat(values.threshold as string) || config.threshold || 0.6;
+  const timeoutSec = parseInt(values.timeout as string, 10) || config.timeout || 30;
+  const format = String(values.format || config.format || "text");
+  const verbose = Boolean(values.verbose) || config.verbose || false;
+  const quiet = Boolean(values.quiet) || config.quiet || false;
 
   if (isNaN(threshold) || threshold < 0 || threshold > 1) {
     console.error(c.red("✖") + " Threshold must be a number between 0 and 1.");
@@ -80,10 +80,15 @@ async function main() {
     process.exit(1);
   }
 
-  // Resolve providers
-  const requestedModels = (values.models as string)
-    ? (values.models as string).split(",").map((s) => s.trim())
-    : detectAvailableProviders();
+  // Resolve providers: CLI > config > auto-detect
+  const cliModels = typeof values.models === "string" && values.models.trim()
+    ? values.models.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
+  const requestedModels = cliModels.length > 0
+    ? cliModels
+    : config.providers?.length
+      ? config.providers
+      : detectAvailableProviders();
 
   // Validate requested provider names
   const knownProviders = ["openai", "anthropic", "gemini", "mistral", "deepseek", "groq", "xai", "openrouter"];
@@ -114,6 +119,9 @@ async function main() {
     console.error(`  ${c.dim("prompt")}    ${prompt.slice(0, 80)}${prompt.length > 80 ? "..." : ""}`);
     console.error(`  ${c.dim("models")}    ${requestedModels.map((m) => c.cyan(m)).join(", ")}`);
     console.error(`  ${c.dim("threshold")} ${threshold}`);
+    if (config.models && Object.keys(config.models).length > 0) {
+      console.error(`  ${c.dim("custom")}    ${Object.entries(config.models).map(([k, v]) => `${k}=${v}`).join(", ")}`);
+    }
     console.error("");
   }
 
@@ -122,7 +130,10 @@ async function main() {
     ? spinner(`Querying ${requestedModels.length} models...`)
     : null;
 
-  const responses = await queryAll(prompt, requestedModels);
+  const responses = await queryAll(prompt, requestedModels, {
+    models: config.models,
+    maxTokens: config.maxTokens,
+  });
 
   spin?.stop(`${c.green("✔")} ${responses.length}/${requestedModels.length} models responded`);
 

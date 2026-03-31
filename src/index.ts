@@ -11,6 +11,7 @@ import { parseArgs } from "node:util";
 import c from "picocolors";
 import { queryAll } from "./providers.js";
 import { fuse } from "./consensus.js";
+import { loadConfig } from "./config.js";
 import type { ProviderResponse, FuseResult } from "./types.js";
 
 const VERSION = "1.0.0";
@@ -34,6 +35,9 @@ function spinner(text: string) {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 async function main() {
+  // Load config file (CLI flags override config)
+  const config = loadConfig();
+
   const { values, positionals } = parseArgs({
     options: {
       models: { type: "string", short: "m", default: "" },

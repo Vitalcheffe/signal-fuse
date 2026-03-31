@@ -136,9 +136,14 @@ async function main() {
 
   // Output
   if (format === "json") {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result));
   } else {
     printResult(result, verbose, quiet);
+  }
+
+  // Exit with code 2 when confidence is below threshold (useful for CI)
+  if (result.confidence < threshold) {
+    process.exit(2);
   }
 }
 
@@ -224,6 +229,7 @@ function printHelp() {
     ${c.bold("-m, --models")} ${c.dim("<list>")}     Comma-separated providers (auto-detect by default)
     ${c.bold("-t, --threshold")} ${c.dim("<0-1>")}   Similarity threshold for consensus (default: 0.6)
     ${c.bold("-f, --format")} ${c.dim("<fmt>")}      Output format: ${c.cyan("text")} | ${c.cyan("json")}
+    ${c.bold("--timeout")} ${c.dim("<sec>")}        Per-provider timeout in seconds (default: 30)
     ${c.bold("-v, --verbose")}               Show individual model responses + outlier analysis
     ${c.bold("-q, --quiet")}                 Suppress headers and metadata
     ${c.bold("-h, --help")}                  Show this help
@@ -263,4 +269,10 @@ function printHelp() {
 main().catch((err) => {
   console.error(c.red("✖ Fatal:") + " " + err.message);
   process.exit(1);
+});
+
+// Graceful shutdown on Ctrl+C
+process.on("SIGINT", () => {
+  console.error(c.dim("\n  Interrupted."));
+  process.exit(130);
 });
